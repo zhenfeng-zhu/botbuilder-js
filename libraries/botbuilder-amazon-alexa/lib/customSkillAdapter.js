@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 /**
- * @module botbuilder
+ * @module botbuilder-amazon-alexa
  */
 /**
  * Copyright (c) Microsoft Corporation. All rights reserved.
@@ -21,7 +21,7 @@ class CustomSkillAdapter extends botbuilder_1.BotAdapter {
         this.settings = Object.assign({}, settings);
     }
     processRequest(req, res, logic) {
-        // Parse body of request
+        // Verify request
         let errorCode = 400;
         return verifyBody(req).then((body) => {
             errorCode = 500;
@@ -33,16 +33,23 @@ class CustomSkillAdapter extends botbuilder_1.BotAdapter {
             if (request.version !== '1.0') {
                 throw new Error(`Unexpected version of "${request.version}" received.`);
             }
-            // Process received activity
+            // create context object
             const activity = this.requestToActivity(request);
             const context = this.createContext(activity);
+            // Add context extensions for sessionAttributes
+            context.sessionAttributes = request.session.attributes ? JSON.parse(JSON.stringify(request.session.attributes)) : {};
+            // Process received activity
             return this.runMiddleware(context, logic)
                 .then(() => {
                 const key = activity.conversation.id + ':' + activity.id;
                 try {
                     const activities = this.responses[key] || [];
                     const response = this.combineResponses(activities);
-                    res.send(200, response);
+                    if (response.sessionAttributes === undefined && typeof context.sessionAttributes === 'object') {
+                        response.sessionAttributes = context.sessionAttributes;
+                    }
+                    res.status(200);
+                    res.send(response);
                     res.end();
                 }
                 finally {
@@ -54,7 +61,8 @@ class CustomSkillAdapter extends botbuilder_1.BotAdapter {
         }).catch((err) => {
             // Reject response with error code
             console.warn(`CustomSkillAdapter.processRequest(): ${errorCode} ERROR - ${err.toString()}`);
-            res.send(errorCode, err.toString());
+            res.status(errorCode);
+            res.send(err.toString());
             res.end();
             throw err;
         });
@@ -96,7 +104,7 @@ class CustomSkillAdapter extends botbuilder_1.BotAdapter {
     requestToActivity(request) {
         const System = request.context.System;
         const activity = {};
-        activity.channelId = 'alexa.customSkill';
+        activity.channelId = 'alexa';
         activity.serviceUrl = `${System.apiEndpoint}?token=${System.apiAccessToken}`;
         activity.recipient = { id: System.application.applicationId, name: 'skill' };
         activity.from = { id: System.user.userId, name: 'user' };

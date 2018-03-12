@@ -334,7 +334,7 @@ describe(`BotFrameworkAdapter`, function () {
         });
     });
 
-    it(`should wait for a 'delay' withut a value using sendActivity().`, function (done) {
+    it(`should wait for a 'delay' without a value using sendActivity().`, function (done) {
         const start = new Date().getTime();
         const adapter = new AdapterUnderTest();
         adapter.sendActivity([outgoingMessage, { type: 'delay' }, outgoingMessage]).then((responses) => {

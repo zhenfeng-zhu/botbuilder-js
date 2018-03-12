@@ -1,5 +1,5 @@
 /**
- * @module botbuilder
+ * @module botbuilder-amazon-alexa
  */
 /**
  * Copyright (c) Microsoft Corporation. All rights reserved.
@@ -24,7 +24,15 @@ export interface WebRequest {
  */
 export interface WebResponse {
     end(...args: any[]): any;
+    status(status: number): any;
     send(status: number, body?: any): any;
+    send(body?: any): any;
+}
+export interface SkillContext extends BotContext {
+    /** State persisted for the lifetime of the session. */
+    sessionAttributes: {
+        [key: string]: any;
+    };
 }
 export interface CustomSkillAdapterSettings {
 }
@@ -36,11 +44,11 @@ export declare class CustomSkillAdapter extends BotAdapter {
      * @param settings (optional) configuration settings for the adapter.
      */
     constructor(settings?: Partial<CustomSkillAdapterSettings>);
-    processRequest(req: WebRequest, res: WebResponse, logic: (context: BotContext) => Promiseable<any>): Promise<void>;
+    processRequest(req: WebRequest, res: WebResponse, logic: (context: SkillContext) => Promiseable<any>): Promise<void>;
     sendActivity(activities: Partial<Activity>[]): Promise<ResourceResponse[]>;
     updateActivity(activity: Partial<Activity>): Promise<void>;
     deleteActivity(reference: Partial<ConversationReference>): Promise<void>;
-    protected createContext(request: Partial<Activity>): BotContext;
+    protected createContext(request: Partial<Activity>): SkillContext;
     protected requestToActivity(request: schema.AlexaRequestBody): Activity;
     protected combineResponses(activities: Partial<Activity>[]): schema.AlexaResponseBody;
 }

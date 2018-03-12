@@ -1,5 +1,5 @@
 /**
- * @module botbuilder
+ * @module botbuilder-amazon-alexa
  */
 /**
  * Copyright (c) Microsoft Corporation. All rights reserved.
@@ -30,7 +30,14 @@ export interface WebRequest {
  */
 export interface WebResponse {
     end(...args: any[]): any;
+    status(status: number): any;
     send(status: number, body?: any): any;
+    send(body?: any): any;
+}
+
+export interface SkillContext extends BotContext {
+    /** State persisted for the lifetime of the session. */
+    sessionAttributes: { [key:string]: any; };
 }
 
 export interface CustomSkillAdapterSettings {
@@ -49,8 +56,8 @@ export class CustomSkillAdapter extends BotAdapter {
         this.settings = Object.assign({}, settings);
     }
 
-    public processRequest(req: WebRequest, res: WebResponse, logic: (context: BotContext) => Promiseable<any>): Promise<void> {
-        // Parse body of request
+    public processRequest(req: WebRequest, res: WebResponse, logic: (context: SkillContext) => Promiseable<any>): Promise<void> {
+        // Verify request
         let errorCode = 400;
         return verifyBody(req).then((body) => {
             errorCode = 500;
@@ -60,16 +67,25 @@ export class CustomSkillAdapter extends BotAdapter {
             if (typeof request !== 'object') { throw new Error(`Invalid JSON received`) }
             if (request.version !== '1.0') { throw new Error(`Unexpected version of "${request.version}" received.`) }
 
-            // Process received activity
+            // create context object
             const activity = this.requestToActivity(request);
             const context = this.createContext(activity);
+
+            // Add context extensions for sessionAttributes
+            context.sessionAttributes = request.session.attributes ? JSON.parse(JSON.stringify(request.session.attributes)) : {};
+
+            // Process received activity
             return this.runMiddleware(context, logic as any)
                 .then(() => {
                     const key = activity.conversation.id + ':' + activity.id; 
                     try {
                         const activities = this.responses[key] || [];
                         const response = this.combineResponses(activities);
-                        res.send(200, response);
+                        if (response.sessionAttributes === undefined && typeof context.sessionAttributes === 'object') {
+                            response.sessionAttributes = context.sessionAttributes;
+                        }
+                        res.status(200)
+                        res.send(response);
                         res.end();
                     } finally {
                         if (this.responses.hasOwnProperty(key)) { delete this.responses[key] }
@@ -78,7 +94,8 @@ export class CustomSkillAdapter extends BotAdapter {
         }).catch((err) => {
             // Reject response with error code
             console.warn(`CustomSkillAdapter.processRequest(): ${errorCode} ERROR - ${err.toString()}`);
-            res.send(errorCode, err.toString());
+            res.status(errorCode)
+            res.send(err.toString());
             res.end();
             throw err;
         });
@@ -117,14 +134,14 @@ export class CustomSkillAdapter extends BotAdapter {
         return Promise.reject(new Error(`CustomSkillAdapter.deleteActivity(): Not supported.`));
     }
 
-    protected createContext(request: Partial<Activity>): BotContext {
-        return new BotContext(this as any, request);
+    protected createContext(request: Partial<Activity>): SkillContext {
+        return new BotContext(this as any, request) as SkillContext;
     }
 
     protected requestToActivity(request: schema.AlexaRequestBody): Activity {
         const System = request.context.System;
         const activity: Partial<Activity> = {};
-        activity.channelId = 'alexa.customSkill';
+        activity.channelId = 'alexa';
         activity.serviceUrl = `${System.apiEndpoint}?token=${System.apiAccessToken}`;
         activity.recipient = { id: System.application.applicationId, name: 'skill' };
         activity.from = { id: System.user.userId, name: 'user' };
