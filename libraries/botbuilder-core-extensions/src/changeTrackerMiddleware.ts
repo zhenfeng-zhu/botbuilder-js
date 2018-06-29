@@ -9,8 +9,6 @@ import { TurnContext, Middleware } from 'botbuilder-core';
 import { Storage, StoreItem, StoreItems } from './storage';
 import { FrameScope } from './frameInterfaces';
 import { RootFrame } from './rootFrame';
-import { SlotExpirationPolicy } from './slotInterfaces';
-
 
 export interface SlotValueChange<T = any> {
     tags: string[];

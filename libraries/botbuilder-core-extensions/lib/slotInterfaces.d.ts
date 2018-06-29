@@ -7,74 +7,66 @@
  */
 import { TurnContext } from 'botbuilder-core';
 import { Frame } from './frameInterfaces';
-
 /**
  * Default slot types supported.
  */
-export enum SlotType {
-    string = 'string',
-    number = 'number',
-    integer = 'integer',
-    boolean = 'boolean',
-    array = 'array',
-    object = 'object',
-    any = 'any'
+export declare enum SlotType {
+    string = "string",
+    number = "number",
+    integer = "integer",
+    boolean = "boolean",
+    array = "array",
+    object = "object",
+    any = "any",
 }
-
 /**
  * Definition for a slot that can be associated with a frame.
  */
 export interface SlotDefinition<T = any> {
-    /** 
-     * Unique name of the slot within the frame. 
+    /**
+     * Unique name of the slot within the frame.
      */
     name: string;
-
-    /** 
-     * (Optional) slots data type for validation purposes. 
-     * 
+    /**
+     * (Optional) slots data type for validation purposes.
+     *
      * @remarks
      * This will default to a value of `SlotType.any`.
      */
-    type?: SlotType|string;
-
+    type?: SlotType | string;
     /**
      * (Optional) default value to initialize the slot with.
-     * 
+     *
      * @remarks
-     * The slot will automatically revert back to this value anytime its value is expired or 
+     * The slot will automatically revert back to this value anytime its value is expired or
      * manually deleted.
      */
     defaultValue?: T;
-
-    /** 
+    /**
      * (Optional) Array of change tags associated with the slot.
-     * 
+     *
      * @remarks
-     * Anytime the slots value changes, the new value will be logged to a shared change tracker 
+     * Anytime the slots value changes, the new value will be logged to a shared change tracker
      * using the supplied tags.  This enables searching for recent values on future turns of the
-     * conversation. 
+     * conversation.
      */
     changeTags?: string[];
-
     /**
      * (Optional) expiration policy that determines how long a slots value is remembered for.
-     * 
+     *
      * @remarks
      * By default a slots value is remembered indefinitely.
      */
     expireAfterSeconds?: number;
-
     /**
-     * (Optional) history policy that determines how many of the slots previous values are 
+     * (Optional) history policy that determines how many of the slots previous values are
      * remembered and for how long.
-     * 
+     *
      * @remarks
-     * By default a slots previous values are not remembered. 
+     * By default a slots previous values are not remembered.
      */
     history?: SlotHistoryPolicy;
 }
-
 /**
  * Defines the history policy that determines how many of the slots previous values are remembered
  * and for how long.
@@ -84,19 +76,16 @@ export interface SlotHistoryPolicy {
      * Number of values to remember.
      */
     maxCount: number;
-
     /**
-     * (Optional) expiration policy that determines how long individual values are remembered for. 
+     * (Optional) expiration policy that determines how long individual values are remembered for.
      */
     expireAfterSeconds?: number;
 }
-
 export interface ReadOnlySlot<T = any> {
-    get(context: TurnContext): Promise<T|undefined>;
+    get(context: TurnContext): Promise<T | undefined>;
     has(context: TurnContext): Promise<boolean>;
     history(context: TurnContext): Promise<SlotHistoryValue<T>[]>;
 }
-
 export interface ReadWriteSlot<T = any> extends ReadOnlySlot<T> {
     readonly definition: SlotDefinition;
     readonly frame: Frame;
@@ -104,7 +93,6 @@ export interface ReadWriteSlot<T = any> extends ReadOnlySlot<T> {
     delete(context: TurnContext): Promise<void>;
     set(context: TurnContext, value: T): Promise<void>;
 }
-
 export interface SlotHistoryValue<T = any> {
     value: T;
     timestamp: string;
