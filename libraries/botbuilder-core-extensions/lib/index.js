@@ -25,7 +25,6 @@ __export(require("./memoryTranscriptStore"));
 __export(require("./messageFactory"));
 __export(require("./rootFrame"));
 __export(require("./slot"));
-__export(require("./slotInterfaces"));
 __export(require("./storage"));
 __export(require("./testAdapter"));
 __export(require("./transcriptLogger"));

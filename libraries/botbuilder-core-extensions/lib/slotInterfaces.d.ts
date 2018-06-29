@@ -8,18 +8,6 @@
 import { TurnContext } from 'botbuilder-core';
 import { Frame } from './frameInterfaces';
 /**
- * Default slot types supported.
- */
-export declare enum SlotType {
-    string = "string",
-    number = "number",
-    integer = "integer",
-    boolean = "boolean",
-    array = "array",
-    object = "object",
-    any = "any",
-}
-/**
  * Definition for a slot that can be associated with a frame.
  */
 export interface SlotDefinition<T = any> {
@@ -27,13 +15,6 @@ export interface SlotDefinition<T = any> {
      * Unique name of the slot within the frame.
      */
     name: string;
-    /**
-     * (Optional) slots data type for validation purposes.
-     *
-     * @remarks
-     * This will default to a value of `SlotType.any`.
-     */
-    type?: SlotType | string;
     /**
      * (Optional) default value to initialize the slot with.
      *
