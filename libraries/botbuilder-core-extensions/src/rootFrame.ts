@@ -29,7 +29,7 @@ export class RootFrame implements Frame {
 
         // Initialize slots
         if (definition.slots) {
-            definition.slots.forEach((def) => this.addSlot(new Slot(this, def)));
+            definition.slots.forEach((def) => { new Slot(this, def) });
         }
     }
 

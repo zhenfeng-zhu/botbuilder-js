@@ -21,7 +21,7 @@ class RootFrame {
         this.namespace = definition.namespace || definition.scope;
         // Initialize slots
         if (definition.slots) {
-            definition.slots.forEach((def) => this.addSlot(new slot_1.Slot(this, def)));
+            definition.slots.forEach((def) => { new slot_1.Slot(this, def); });
         }
     }
     addSlot(slot) {
