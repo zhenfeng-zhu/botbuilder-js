@@ -18,20 +18,10 @@ export class Slot<T = any> implements ReadWriteSlot<T> {
     constructor (frame: Frame, nameOrDefinition: string|SlotDefinition<T>, defaultValue?: T) {
         this.frame = frame;
         this.definition = typeof nameOrDefinition === 'string' ? { name: nameOrDefinition, defaultValue: defaultValue } : nameOrDefinition;
-    }
-
-    public async get(context: TurnContext): Promise<T|undefined> {
-        const v = await this.loadValue(context);
-        return v ? v.value : undefined;
-    }
-
-    public async has(context: TurnContext): Promise<boolean> {
-        const v = await this.loadValue(context);
-        return v !== undefined;
+        this.frame.addSlot(this);
     }
 
     public asReadOnly(): ReadOnlySlot<T> {
-
         return {
             get: async (context) => {
                 const v = await this.cloneValue(context);
@@ -55,6 +45,16 @@ export class Slot<T = any> implements ReadWriteSlot<T> {
         } 
     }
 
+    public async get(context: TurnContext): Promise<T|undefined> {
+        const v = await this.loadValue(context);
+        return v ? v.value : undefined;
+    }
+
+    public async has(context: TurnContext): Promise<boolean> {
+        const v = await this.loadValue(context);
+        return v !== undefined;
+    }
+
     public async history(context: TurnContext): Promise<SlotHistoryValue<T>[]> {
         const v = await this.loadValue(context);
         return v ? v.history : [];
@@ -69,10 +69,11 @@ export class Slot<T = any> implements ReadWriteSlot<T> {
             if (v) {
                 // Promote current value to history
                 if (history && history.maxCount > 0) {
-                    v.history.push({
+                    v.history.unshift({
                         value: v.value,
                         timestamp: now.toISOString()
                     });
+                    this.pruneHistory(v);
                 }
 
                 // Update slots current value
@@ -91,12 +92,12 @@ export class Slot<T = any> implements ReadWriteSlot<T> {
     }
 
     private async loadValue(context: TurnContext): Promise<SlotValue<T>|undefined> {
-        const state = this.frame.load(context, true);
+        const state = await this.frame.load(context, true);
         let v: SlotValue<T>|undefined;
         if (state) {
             // Check for existing value and that it's not expired. 
             const now = new Date();
-            const { name, expireAfterSeconds, history, defaultValue } = this.definition;
+            const { name, expireAfterSeconds, defaultValue } = this.definition;
             if (state.hasOwnProperty(name)) {
                 v = state[name] as SlotValue<T>;
 
@@ -107,16 +108,7 @@ export class Slot<T = any> implements ReadWriteSlot<T> {
                     v = undefined;
                 } else {
                     v.lastAccess = now.toISOString();
-
-                    // Purge expired history values
-                    if (history && typeof history.expireAfterSeconds === 'number') {
-                        v.history = v.history.filter((hv) => {
-                            const timestamp = new Date(hv.timestamp);
-                            if (now.getTime() < (timestamp.getTime() + (expireAfterSeconds * 1000))) {
-                                return hv;
-                            }
-                        });
-                    }
+                    this.pruneHistory(v);
                 }
             }
             
@@ -133,6 +125,27 @@ export class Slot<T = any> implements ReadWriteSlot<T> {
     private async cloneValue(context: TurnContext): Promise<SlotValue<T>|undefined> {
         const v = await this.loadValue(context);
         return v ? JSON.parse(JSON.stringify(v)) : undefined;
+    }
+
+    private pruneHistory(value: SlotValue<T>): void {
+        const { history } = this.definition;
+        if (history && history.maxCount > 0) {
+            // Cap number of values in history
+            if (value.history.length > history.maxCount) {
+                value.history = value.history.slice(0, history.maxCount);
+            }
+
+            // Age out expired values
+            if (typeof history.expireAfterSeconds === 'number') {
+                const now = new Date().getTime();
+                value.history = value.history.filter((hv) => {
+                    const timestamp = new Date(hv.timestamp);
+                    if (now < (timestamp.getTime() + (history.expireAfterSeconds * 1000))) {
+                        return hv;
+                    }
+                });
+            }
+        }
     }
 }
 

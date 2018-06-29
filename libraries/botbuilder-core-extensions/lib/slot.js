@@ -12,18 +12,7 @@ class Slot {
     constructor(frame, nameOrDefinition, defaultValue) {
         this.frame = frame;
         this.definition = typeof nameOrDefinition === 'string' ? { name: nameOrDefinition, defaultValue: defaultValue } : nameOrDefinition;
-    }
-    get(context) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const v = yield this.loadValue(context);
-            return v ? v.value : undefined;
-        });
-    }
-    has(context) {
-        return __awaiter(this, void 0, void 0, function* () {
-            const v = yield this.loadValue(context);
-            return v !== undefined;
-        });
+        this.frame.addSlot(this);
     }
     asReadOnly() {
         return {
@@ -49,6 +38,18 @@ class Slot {
             }
         });
     }
+    get(context) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const v = yield this.loadValue(context);
+            return v ? v.value : undefined;
+        });
+    }
+    has(context) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const v = yield this.loadValue(context);
+            return v !== undefined;
+        });
+    }
     history(context) {
         return __awaiter(this, void 0, void 0, function* () {
             const v = yield this.loadValue(context);
@@ -65,10 +66,11 @@ class Slot {
                 if (v) {
                     // Promote current value to history
                     if (history && history.maxCount > 0) {
-                        v.history.push({
+                        v.history.unshift({
                             value: v.value,
                             timestamp: now.toISOString()
                         });
+                        this.pruneHistory(v);
                     }
                     // Update slots current value
                     v.value = value;
@@ -87,12 +89,12 @@ class Slot {
     }
     loadValue(context) {
         return __awaiter(this, void 0, void 0, function* () {
-            const state = this.frame.load(context, true);
+            const state = yield this.frame.load(context, true);
             let v;
             if (state) {
                 // Check for existing value and that it's not expired. 
                 const now = new Date();
-                const { name, expireAfterSeconds, history, defaultValue } = this.definition;
+                const { name, expireAfterSeconds, defaultValue } = this.definition;
                 if (state.hasOwnProperty(name)) {
                     v = state[name];
                     // Check for expiration of whole slot
@@ -103,15 +105,7 @@ class Slot {
                     }
                     else {
                         v.lastAccess = now.toISOString();
-                        // Purge expired history values
-                        if (history && typeof history.expireAfterSeconds === 'number') {
-                            v.history = v.history.filter((hv) => {
-                                const timestamp = new Date(hv.timestamp);
-                                if (now.getTime() < (timestamp.getTime() + (expireAfterSeconds * 1000))) {
-                                    return hv;
-                                }
-                            });
-                        }
+                        this.pruneHistory(v);
                     }
                 }
                 // Populate with default value.
@@ -129,6 +123,25 @@ class Slot {
             const v = yield this.loadValue(context);
             return v ? JSON.parse(JSON.stringify(v)) : undefined;
         });
+    }
+    pruneHistory(value) {
+        const { history } = this.definition;
+        if (history && history.maxCount > 0) {
+            // Cap number of values in history
+            if (value.history.length > history.maxCount) {
+                value.history = value.history.slice(0, history.maxCount);
+            }
+            // Age out expired values
+            if (typeof history.expireAfterSeconds === 'number') {
+                const now = new Date().getTime();
+                value.history = value.history.filter((hv) => {
+                    const timestamp = new Date(hv.timestamp);
+                    if (now < (timestamp.getTime() + (history.expireAfterSeconds * 1000))) {
+                        return hv;
+                    }
+                });
+            }
+        }
     }
 }
 exports.Slot = Slot;

@@ -13,12 +13,13 @@ export declare class Slot<T = any> implements ReadWriteSlot<T> {
     readonly definition: SlotDefinition<T>;
     constructor(frame: Frame, definition: SlotDefinition<T>);
     constructor(frame: Frame, name: string, defaultValue?: T);
-    get(context: TurnContext): Promise<T | undefined>;
-    has(context: TurnContext): Promise<boolean>;
     asReadOnly(): ReadOnlySlot<T>;
     delete(context: TurnContext): Promise<void>;
+    get(context: TurnContext): Promise<T | undefined>;
+    has(context: TurnContext): Promise<boolean>;
     history(context: TurnContext): Promise<SlotHistoryValue<T>[]>;
     set(context: TurnContext, value: T): Promise<void>;
     private loadValue(context);
     private cloneValue(context);
+    private pruneHistory(value);
 }
