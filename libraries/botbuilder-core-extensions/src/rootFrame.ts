@@ -109,6 +109,11 @@ export class RootFrame implements Frame {
         }
     }
 
+    public wasAccessed(context: TurnContext): boolean {
+        let cached = context.services.get(this.cacheKey) as CachedFrameState;
+        return (cached && cached.accessed);        
+    }
+
     protected getStorageKey(context: TurnContext): string {
         const a = context.activity;
         switch (this.scope) {

@@ -19,6 +19,7 @@ __export(require("./childFrame"));
 __export(require("./conversationState"));
 __export(require("./fileTranscriptStore"));
 __export(require("./frameInterfaces"));
+__export(require("./frameManagerMiddleware"));
 __export(require("./memoryStorage"));
 __export(require("./memoryTranscriptStore"));
 __export(require("./messageFactory"));

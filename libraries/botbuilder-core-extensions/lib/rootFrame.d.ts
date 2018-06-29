@@ -25,6 +25,7 @@ export declare class RootFrame implements Frame {
     onSlotValueChanged(handler: SlotValueChangedHandler): void;
     slotValueChanged(context: TurnContext, tags: string[], value: any): Promise<void>;
     save(context: TurnContext): Promise<void>;
+    wasAccessed(context: TurnContext): boolean;
     protected getStorageKey(context: TurnContext): string;
 }
 export declare class UserFrame extends RootFrame {

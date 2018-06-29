@@ -14,6 +14,7 @@ export * from './childFrame';
 export * from './conversationState';
 export * from './fileTranscriptStore';
 export * from './frameInterfaces';
+export * from './frameManagerMiddleware';
 export * from './memoryStorage';
 export * from './memoryTranscriptStore';
 export * from './messageFactory';

@@ -45,6 +45,7 @@ export class ChangeTrackerMiddleware implements Middleware {
         });
     }
 
+    /** @private */
     public async onTurn(context: TurnContext, next: () => Promise<void>): Promise<void> {
         // Call bots logic
         await next();

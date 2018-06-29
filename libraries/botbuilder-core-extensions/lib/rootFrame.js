@@ -106,6 +106,10 @@ class RootFrame {
             }
         });
     }
+    wasAccessed(context) {
+        let cached = context.services.get(this.cacheKey);
+        return (cached && cached.accessed);
+    }
     getStorageKey(context) {
         const a = context.activity;
         switch (this.scope) {

@@ -23,6 +23,7 @@ export declare class ChangeTrackerMiddleware implements Middleware {
     maxCount: number;
     expireAfterSeconds: number | undefined;
     constructor(storage: Storage, ...frames: RootFrame[]);
+    /** @private */
     onTurn(context: TurnContext, next: () => Promise<void>): Promise<void>;
     findChanges<T = any>(context: TurnContext, tag: string, afterTimestampOrSequence?: Date | number): Promise<SlotValueChange<T>[]>;
     private loadChanges(context);
