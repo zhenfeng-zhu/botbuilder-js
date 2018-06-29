@@ -15,7 +15,7 @@ class ChildFrame {
         this.slots = {};
         // Initialize slots
         if (childSlots) {
-            childSlots.forEach((def) => this.addSlot(new slot_1.Slot(this, def)));
+            childSlots.forEach((def) => { new slot_1.Slot(this, def); });
         }
     }
     get parent() {

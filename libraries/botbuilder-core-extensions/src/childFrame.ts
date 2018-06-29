@@ -16,7 +16,7 @@ export class ChildFrame implements Frame {
     constructor (private readonly frameSlot: ReadWriteSlot<object>, childSlots?: SlotDefinition[]) {
         // Initialize slots
         if (childSlots) {
-            childSlots.forEach((def) => this.addSlot(new Slot(this, def)));
+            childSlots.forEach((def) => { new Slot(this, def) });
         }
     }
 
