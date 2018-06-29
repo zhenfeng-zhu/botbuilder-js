@@ -126,15 +126,3 @@ export interface SlotHistoryValue<T = any> {
     timestamp: string;
     turns: number;
 }
-
-export interface SlotChangeTracker {
-    logChange(context: TurnContext, tags: string[], value: any): Promise<void>;
-    findChanges<T = any>(context: TurnContext, tag: string, afterTimestampOrSequence?: Date|number): Promise<SlotChangeValue<T>[]>;
-}
-
-export interface SlotChangeValue<T = any> {
-    tags: string[];
-    value: T;
-    timestamp: string;
-    sequence: number;
-}

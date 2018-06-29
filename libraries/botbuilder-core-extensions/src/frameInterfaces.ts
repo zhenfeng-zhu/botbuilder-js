@@ -6,7 +6,7 @@
  * Licensed under the MIT License.
  */
 import { TurnContext } from 'botbuilder-core';
-import { SlotDefinition, ReadWriteSlot, SlotChangeTracker } from './slotInterfaces';
+import { SlotDefinition, ReadWriteSlot } from './slotInterfaces';
 
 /**
  * Default persistence scopes supported for a frame.
@@ -53,10 +53,11 @@ export interface FrameDefinition {
     slots?: SlotDefinition[];
 }
 
-
 export interface Frame {
     readonly parent: Frame|undefined;
-    readonly changeTracker: SlotChangeTracker|undefined;
     addSlot(slot: ReadWriteSlot<any>): void;
     load(context: TurnContext, accessed?: boolean): Promise<object>;
+    slotValueChanged(context: TurnContext, tags: string[], value: any): Promise<void>;
 }
+
+export type SlotValueChangedHandler = (context: TurnContext, tags: string[], value: any) => Promise<void>;

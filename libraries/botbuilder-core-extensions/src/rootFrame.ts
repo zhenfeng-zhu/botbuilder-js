@@ -7,18 +7,18 @@
  */
 import { TurnContext } from 'botbuilder-core';
 import { Storage, StoreItems, StoreItem } from './storage';
-import { FrameDefinition, FrameScope, Frame } from './frameInterfaces';
-import { ReadWriteSlot, SlotChangeTracker } from './slotInterfaces';
+import { FrameDefinition, FrameScope, Frame, SlotValueChangedHandler } from './frameInterfaces';
+import { ReadWriteSlot } from './slotInterfaces';
 import { Slot } from './slot';
+
 
 export class RootFrame implements Frame {
     private readonly cacheKey = Symbol('state');
     private readonly slots: { [name:string]: ReadWriteSlot<any>; } = {};
+    private readonly listners: SlotValueChangedHandler[] = [];
 
     public readonly parent: Frame|undefined = undefined;
-
-    public changeTracker: SlotChangeTracker|undefined = undefined;
-    
+   
     public readonly scope: string;
 
     public readonly namespace: string;
@@ -82,6 +82,16 @@ export class RootFrame implements Frame {
         }
         if (accessed) { cached.accessed = true }
         return cached.state;
+    }
+
+    public onSlotValueChanged(handler: SlotValueChangedHandler): void {
+        this.listners.push(handler);
+    }
+
+    public async slotValueChanged(context: TurnContext, tags: string[], value: any): Promise<void> {
+        for (let i = 0; i < this.listners.length; i++) {
+            await this.listners[i](context, tags, value);
+        }
     }
 
     public async save(context: TurnContext): Promise<void> {

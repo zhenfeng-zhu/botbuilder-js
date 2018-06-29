@@ -7,7 +7,7 @@
  */
 import { TurnContext } from 'botbuilder-core';
 import { Frame } from './frameInterfaces';
-import { SlotDefinition, SlotChangeTracker, ReadWriteSlot } from './slotInterfaces';
+import { SlotDefinition, ReadWriteSlot } from './slotInterfaces';
 import { Slot } from './slot';
 
 export class ChildFrame implements Frame {
@@ -22,10 +22,6 @@ export class ChildFrame implements Frame {
 
     public get parent(): Frame {
         return this.frameSlot.frame;
-    }
-
-    public get changeTracker(): SlotChangeTracker|undefined {
-        return this.frameSlot.frame.changeTracker;
     }
 
     public addSlot(slot: ReadWriteSlot<any>): void {
@@ -54,5 +50,10 @@ export class ChildFrame implements Frame {
             await this.frameSlot.set(context, value);
         }
         return value;
+    }
+
+    
+    public slotValueChanged(context: TurnContext, tags: string[], value: any): Promise<void> {
+        return this.frameSlot.frame.slotValueChanged(context, tags, value);
     }
 }
