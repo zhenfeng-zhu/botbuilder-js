@@ -41,14 +41,12 @@ export class RootFrame implements Frame {
     }
 
     public async deleteAll(context: TurnContext): Promise<void> {
-        // Overwrite persisted state
-        const state: StoreItem = { eTag: '*' };
+        // Delete persisted state
         const storageKey = this.getStorageKey(context);
-        const changes = {} as StoreItems;
-        changes[storageKey] = state;
-        await this.storage.write(changes);
+        await this.storage.delete([storageKey]);
 
         // Update cache entry
+        const state: StoreItem = { eTag: '*' };
         context.services.set(this.cacheKey, {
             state: state,
             hash: JSON.stringify(state),
