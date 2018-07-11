@@ -36,13 +36,11 @@ class RootFrame {
     }
     deleteAll(context) {
         return __awaiter(this, void 0, void 0, function* () {
-            // Overwrite persisted state
-            const state = { eTag: '*' };
+            // Delete persisted state
             const storageKey = this.getStorageKey(context);
-            const changes = {};
-            changes[storageKey] = state;
-            yield this.storage.write(changes);
+            yield this.storage.delete([storageKey]);
             // Update cache entry
+            const state = { eTag: '*' };
             context.services.set(this.cacheKey, {
                 state: state,
                 hash: JSON.stringify(state),
