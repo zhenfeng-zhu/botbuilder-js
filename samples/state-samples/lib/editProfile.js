@@ -8,17 +8,12 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const botbuilder_1 = require("botbuilder");
 const botbuilder_dialogs_1 = require("botbuilder-dialogs");
 class EditProfile extends botbuilder_dialogs_1.DialogContainer {
     constructor(profileSlot) {
         super('edit');
-        // Define child slots
-        const profileFrame = new botbuilder_1.ChildFrame(profileSlot);
-        const nameSlot = new botbuilder_1.Slot(profileFrame, 'name', '');
-        const ageSlot = new botbuilder_1.Slot(profileFrame, 'age');
-        this.dialogs.add('editName', new EditName(nameSlot));
-        this.dialogs.add('editAge', new EditAge(ageSlot));
+        this.dialogs.add('editName', new EditName(profileSlot.name));
+        this.dialogs.add('editAge', new EditAge(profileSlot.age));
         this.dialogs.add('edit', [
             function (dc) {
                 return __awaiter(this, void 0, void 0, function* () {

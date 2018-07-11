@@ -2,7 +2,8 @@ import { BotFrameworkAdapter, MemoryStorage, UserFrame, ConversationFrame, Frame
 import { DialogSet } from 'botbuilder-dialogs';
 import * as restify from 'restify';
 
-import { Profile, EditProfile } from './editProfile';
+import { ProfileSlot } from './profileSlot';
+import { EditProfile } from './editProfile';
 import { InspectCount } from './inspectCount';
 
 
@@ -25,13 +26,13 @@ const convoFrame = new ConversationFrame(storage);
 adapter.use(new FrameManagerMiddleware(convoFrame));
 
 // Define slots
-const profileSlot = new Slot<Profile>(userFrame, 'profile');
 const dialogStack = new Slot(convoFrame, 'dialogStack', {});
 const countSlot = new Slot<number>(convoFrame, {
     name: 'count',
     defaultValue: 0,
     expireAfterSeconds: 10
 });
+const profileSlot = new ProfileSlot(userFrame, 'profile');
 
 // Create empty dialog set
 const dialogs = new DialogSet();

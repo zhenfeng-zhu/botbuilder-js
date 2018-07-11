@@ -11,6 +11,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const botbuilder_1 = require("botbuilder");
 const botbuilder_dialogs_1 = require("botbuilder-dialogs");
 const restify = require("restify");
+const profileSlot_1 = require("./profileSlot");
 const editProfile_1 = require("./editProfile");
 const inspectCount_1 = require("./inspectCount");
 // Create server
@@ -29,13 +30,13 @@ const userFrame = new botbuilder_1.UserFrame(storage);
 const convoFrame = new botbuilder_1.ConversationFrame(storage);
 adapter.use(new botbuilder_1.FrameManagerMiddleware(convoFrame));
 // Define slots
-const profileSlot = new botbuilder_1.Slot(userFrame, 'profile');
 const dialogStack = new botbuilder_1.Slot(convoFrame, 'dialogStack', {});
 const countSlot = new botbuilder_1.Slot(convoFrame, {
     name: 'count',
     defaultValue: 0,
     expireAfterSeconds: 10
 });
+const profileSlot = new profileSlot_1.ProfileSlot(userFrame, 'profile');
 // Create empty dialog set
 const dialogs = new botbuilder_dialogs_1.DialogSet();
 // Listen for incoming requests 

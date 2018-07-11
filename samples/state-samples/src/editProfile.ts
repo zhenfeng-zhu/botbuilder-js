@@ -1,22 +1,13 @@
 import { ReadWriteSlot, ChildFrame, Slot } from 'botbuilder';
 import { DialogContainer, ConfirmPrompt, TextPrompt, NumberPrompt } from 'botbuilder-dialogs';
-
-export interface Profile {
-    name: string;
-    age: number;
-}
+import { ProfileSlot } from './profileSlot';
 
 export class EditProfile extends DialogContainer {
-    constructor(profileSlot: ReadWriteSlot<Profile>) {
+    constructor(profileSlot: ProfileSlot) {
         super('edit');
 
-        // Define child slots
-        const profileFrame = new ChildFrame(profileSlot);
-        const nameSlot = new Slot(profileFrame, 'name', '');
-        const ageSlot = new Slot<number>(profileFrame, 'age');
-
-        this.dialogs.add('editName', new EditName(nameSlot));
-        this.dialogs.add('editAge', new EditAge(ageSlot));
+        this.dialogs.add('editName', new EditName(profileSlot.name));
+        this.dialogs.add('editAge', new EditAge(profileSlot.age));
 
         this.dialogs.add('edit', [
             async function (dc) {
