@@ -33,6 +33,7 @@ import {
 } from 'botbuilder-core';
 
 import * as os from 'os';
+import * as websocket from 'websocket';
 
 /**
  * Express or Restify Request object.
@@ -584,6 +585,30 @@ export class BotFrameworkAdapter extends BotAdapter {
         });
     }
 
+    public async acceptSocket(request: websocket.request, logic: (context: TurnContext) => Promise<any>): Promise<void> {
+        // TODO: Authenticate incoming connection
+        // const authHeader: string = request.httpRequest.headers.authorization || request.httpRequest.headers.Authorization || '';
+
+        // Accept connection
+        const key = `socket:${this.socketId++}`;
+        const connection = request.accept('botframework', request.origin);
+        this.sockets[key] = connection;
+        connection.on('message', function(message) {
+            if (message.type === 'utf8') {
+                const activity: Activity = JSON.parse(message.utf8Data);
+                activity.serviceUrl = key;
+                const context: TurnContext = this.createContext(activity);
+                this.runMiddleware(context, logic as any)
+            }
+        });
+        connection.on('close', function(reasonCode, description) {
+            delete this.sockets[key];
+        });
+    }
+    private socketId: number = 0;
+    private sockets: { [key: string]: websocket.connection } = {};
+
+
     /**
      * Sends a set of outgoing activities to the appropriate channel server.
      *
@@ -631,30 +656,37 @@ export class BotFrameworkAdapter extends BotAdapter {
                                 if (!activity.conversation || !activity.conversation.id) {
                                     throw new Error(`BotFrameworkAdapter.sendActivity(): missing conversation id.`);
                                 }
-                                let p: Promise<ResourceResponse>;
-                                const client: ConnectorClient = that.createConnectorClient(activity.serviceUrl);
-                                if (activity.type === 'trace' && activity.channelId !== 'emulator') {
-                                    // Just eat activity
-                                    p = Promise.resolve({} as ResourceResponse);
-                                } else if (activity.replyToId) {
-                                    p = client.conversations.replyToActivity(
-                                        activity.conversation.id,
-                                        activity.replyToId,
-                                        activity as Activity
+                                if (activity.serviceUrl.indexOf('socket:') !== 0) {
+                                    let p: Promise<ResourceResponse>;
+                                    const client: ConnectorClient = that.createConnectorClient(activity.serviceUrl);
+                                    if (activity.type === 'trace' && activity.channelId !== 'emulator') {
+                                        // Just eat activity
+                                        p = Promise.resolve({} as ResourceResponse);
+                                    } else if (activity.replyToId) {
+                                        p = client.conversations.replyToActivity(
+                                            activity.conversation.id,
+                                            activity.replyToId,
+                                            activity as Activity
+                                        );
+                                    } else {
+                                        p = client.conversations.sendToConversation(
+                                            activity.conversation.id,
+                                            activity as Activity
+                                        );
+                                    }
+                                    p.then(
+                                        (response: ResourceResponse) => {
+                                        responses.push(response);
+                                        next(i + 1);
+                                        },
+                                        reject
                                     );
-                                } else {
-                                    p = client.conversations.sendToConversation(
-                                        activity.conversation.id,
-                                        activity as Activity
-                                    );
-                                }
-                                p.then(
-                                    (response: ResourceResponse) => {
-                                    responses.push(response);
+                                } else if (that.sockets.hasOwnProperty(activity.serviceUrl)) {
+                                    that.sockets[activity.serviceUrl].sendUTF(JSON.stringify(activity));
                                     next(i + 1);
-                                    },
-                                    reject
-                                );
+                                } else {
+                                    reject(new Error(`Socket client disconnected.`));
+                                }
                                 break;
                         }
                     } catch (err) {
