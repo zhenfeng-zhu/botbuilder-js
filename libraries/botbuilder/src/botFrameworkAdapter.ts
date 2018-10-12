@@ -723,6 +723,7 @@ export class BotFrameworkAdapter extends BotAdapter {
                 activity.id = (this.outgoingId++).toString();
                 this.outgoingAcks[activity.id] = (ack) => {
                     delete this.outgoingAcks[activity.id];
+                    clearTimeout(hTimeout);
                     if (ack.status < 400) {
                         resolve(ack.body || {});
                     } else {
