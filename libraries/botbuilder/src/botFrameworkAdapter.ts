@@ -546,35 +546,32 @@ export class BotFrameworkAdapter extends BotAdapter {
         // Parse body of request
         let errorCode: number = 500;
 
-        return parseRequest(req).then((request: Activity) => {
+        return parseRequest(req).then(async (request: Activity) => {
             // Authenticate the incoming request
             errorCode = 401;
             const authHeader: string = req.headers.authorization || req.headers.Authorization || '';
+            await this.authenticateRequest(request, authHeader);
 
-            return this.authenticateRequest(request, authHeader).then(() => {
-                // Process received activity
-                errorCode = 500;
-                const context: TurnContext = this.createContext(request);
+            // Process received activity
+            errorCode = 500;
+            const context: TurnContext = this.createContext(request);
+            await this.runMiddleware(context, logic as any);
 
-                return this.runMiddleware(context, logic as any)
-                    .then(() => {
-                        if (request.type === ActivityTypes.Invoke) {
-                            // Retrieve cached invoke response.
-                            const invokeResponse: any = context.turnState.get(INVOKE_RESPONSE_KEY);
-                            if (invokeResponse && invokeResponse.value) {
-                                const value: InvokeResponse = invokeResponse.value as InvokeResponse;
-                                res.status(value.status);
-                                res.send(value.body);
-                                res.end();
-                            } else {
-                                throw new Error(`Bot failed to return a valid 'invokeResponse' activity.`);
-                            }
-                        } else {
-                            res.status(202);
-                            res.end();
-                        }
-                    });
-            });
+            if (request.type === ActivityTypes.Invoke) {
+                // Retrieve cached invoke response.
+                const invokeResponse: any = context.turnState.get(INVOKE_RESPONSE_KEY);
+                if (invokeResponse && invokeResponse.value) {
+                    const value: InvokeResponse = invokeResponse.value as InvokeResponse;
+                    res.status(value.status);
+                    res.send(value.body);
+                    res.end();
+                } else {
+                    throw new Error(`Bot failed to return a valid 'invokeResponse' activity.`);
+                }
+            } else {
+                res.status(200);
+                res.end();
+            }
         }).catch((err: Error) => {
             // Reject response with error code
             console.warn(`BotFrameworkAdapter.processActivity(): ${errorCode} ERROR - ${err.toString()}`);
@@ -591,23 +588,48 @@ export class BotFrameworkAdapter extends BotAdapter {
 
         // Accept connection
         const key = `socket:${this.socketId++}`;
-        const connection = request.accept('botframework', request.origin);
+        let connection: websocket.connection|undefined = request.accept('botframework', request.origin);
         this.sockets[key] = connection;
-        connection.on('message', function(message) {
+        connection.on('message', async (message) => {
             if (message.type === 'utf8') {
-                const activity: Activity = JSON.parse(message.utf8Data);
-                activity.serviceUrl = key;
-                const context: TurnContext = this.createContext(activity);
-                this.runMiddleware(context, logic as any)
+                const msg: SocketAck = JSON.parse(message.utf8Data);
+                if (msg.type !== 'ack') {
+                    // Process received activity
+                    const activity: Activity = msg as any; 
+                    activity.serviceUrl = key;
+                    const context: TurnContext = this.createContext(activity);
+                    await this.runMiddleware(context, logic as any);
+
+                    // Retrieve cached invoke response.
+                    const ack: SocketAck = { type: 'ack', id: activity.id.toString(), status: 200 };
+                    if (activity.type === ActivityTypes.Invoke) {
+                        const invokeResponse: any = context.turnState.get(INVOKE_RESPONSE_KEY);
+                        if (invokeResponse && invokeResponse.value) {
+                            const value: InvokeResponse = invokeResponse.value as InvokeResponse;
+                            ack.status = value.status;
+                            ack.body = value.body;
+                        }
+                    }
+
+                    // Return ack
+                    if (connection) {
+                        connection.sendUTF(JSON.stringify(ack));
+                    }
+                } else if (this.outgoingAcks.hasOwnProperty(msg.id)) {
+                    // Notify sender of completion
+                    this.outgoingAcks[msg.id](msg);
+                }
             }
         });
-        connection.on('close', function(reasonCode, description) {
+        connection.on('close', (reasonCode, description) => {
             delete this.sockets[key];
+            connection = undefined;
         });
     }
     private socketId: number = 0;
     private sockets: { [key: string]: websocket.connection } = {};
-
+    private outgoingId: number = 0;
+    private outgoingAcks: { [id: string]: (ack: SocketAck) => void; } = {};
 
     /**
      * Sends a set of outgoing activities to the appropriate channel server.
@@ -627,76 +649,93 @@ export class BotFrameworkAdapter extends BotAdapter {
      * @param context Context for the current turn of conversation with the user.
      * @param activities List of activities to send.
      */
-    public sendActivities(context: TurnContext, activities: Partial<Activity>[]): Promise<ResourceResponse[]> {
-        return new Promise((resolve: any, reject: any): void => {
-            const responses: ResourceResponse[] = [];
-            const that: BotFrameworkAdapter = this;
-            function next(i: number): void {
-                if (i < activities.length) {
-                    try {
-                        const activity: Partial<Activity> = activities[i];
-                        switch (activity.type) {
-                            case 'delay':
-                                setTimeout(
-                                    () => {
-                                    responses.push({} as ResourceResponse);
-                                    next(i + 1);
-                                    },
-                                    typeof activity.value === 'number' ? activity.value : 1000
-                                );
-                                break;
-                            case 'invokeResponse':
-                                // Cache response to context object. This will be retrieved when turn completes.
-                                context.turnState.set(INVOKE_RESPONSE_KEY, activity);
-                                responses.push({} as ResourceResponse);
-                                next(i + 1);
-                                break;
-                            default:
-                                if (!activity.serviceUrl) { throw new Error(`BotFrameworkAdapter.sendActivity(): missing serviceUrl.`); }
-                                if (!activity.conversation || !activity.conversation.id) {
-                                    throw new Error(`BotFrameworkAdapter.sendActivity(): missing conversation id.`);
-                                }
-                                if (activity.serviceUrl.indexOf('socket:') !== 0) {
-                                    let p: Promise<ResourceResponse>;
-                                    const client: ConnectorClient = that.createConnectorClient(activity.serviceUrl);
-                                    if (activity.type === 'trace' && activity.channelId !== 'emulator') {
-                                        // Just eat activity
-                                        p = Promise.resolve({} as ResourceResponse);
-                                    } else if (activity.replyToId) {
-                                        p = client.conversations.replyToActivity(
-                                            activity.conversation.id,
-                                            activity.replyToId,
-                                            activity as Activity
-                                        );
-                                    } else {
-                                        p = client.conversations.sendToConversation(
-                                            activity.conversation.id,
-                                            activity as Activity
-                                        );
-                                    }
-                                    p.then(
-                                        (response: ResourceResponse) => {
-                                        responses.push(response);
-                                        next(i + 1);
-                                        },
-                                        reject
-                                    );
-                                } else if (that.sockets.hasOwnProperty(activity.serviceUrl)) {
-                                    that.sockets[activity.serviceUrl].sendUTF(JSON.stringify(activity));
-                                    next(i + 1);
-                                } else {
-                                    reject(new Error(`Socket client disconnected.`));
-                                }
-                                break;
-                        }
-                    } catch (err) {
-                        reject(err);
+    public async sendActivities(context: TurnContext, activities: Partial<Activity>[]): Promise<ResourceResponse[]> {
+        const responses: ResourceResponse[] = [];
+        for (let i = 0; i < activities.length; i++) {
+            const activity: Partial<Activity> = activities[i];
+            switch (activity.type) {
+                case 'delay':
+                    await this.delay(typeof activity.value === 'number' ? activity.value : 1000);
+                    responses.push({} as ResourceResponse);
+                    break;
+                case 'invokeResponse':
+                    // Cache response to context object. This will be retrieved when turn completes.
+                    context.turnState.set(INVOKE_RESPONSE_KEY, activity);
+                    responses.push({} as ResourceResponse);
+                    break;
+                default:
+                    if (!activity.serviceUrl) { 
+                        throw new Error(`BotFrameworkAdapter.sendActivities(): missing serviceUrl.`); 
                     }
-                } else {
-                    resolve(responses);
-                }
+                    if (!activity.conversation || !activity.conversation.id) {
+                        throw new Error(`BotFrameworkAdapter.sendActivities(): missing conversation id.`);
+                    }
+                    if (activity.type === 'trace' && activity.channelId !== 'emulator') {
+                        // Just eat activity
+                        responses.push({} as ResourceResponse);
+                    } else if (activity.serviceUrl.indexOf('socket:') !== 0) {
+                        const response = await this.sendActivityToServer(activity);
+                        responses.push(response);
+                    } else {
+                        const response = await this.sendActivityToSocket(activity);
+                        responses.push(response);
+                    }
+                    break;
             }
-            next(0);
+
+        }
+        return responses;
+    }
+
+    private delay(timeout: number): Promise<void> {
+        return new Promise((resolve, reject) => {
+            setTimeout(() => resolve(), timeout);
+        });
+    }
+
+    private async sendActivityToServer(activity: Partial<Activity>): Promise<ResourceResponse> {
+        const client: ConnectorClient = this.createConnectorClient(activity.serviceUrl);
+        if (activity.replyToId) {
+            return await client.conversations.replyToActivity(
+                activity.conversation.id,
+                activity.replyToId,
+                activity as Activity
+            );
+        } else {
+            return await client.conversations.sendToConversation(
+                activity.conversation.id,
+                activity as Activity
+            );
+        }
+    }
+
+    private sendActivityToSocket(activity: Partial<Activity>): Promise<ResourceResponse> {
+        return new Promise((resolve, reject) => {
+            // Ensure connection still established
+            if (this.sockets.hasOwnProperty(activity.serviceUrl)) {
+                // Start send timeout
+                const hTimeout = setTimeout(() => {
+                    delete this.outgoingAcks[activity.id];
+                    reject(new Error(`BotFrameworkAdapter.sendActivities(): send to client socket timed out.`)); 
+                }, 10000);
+
+                // Set outgoing ID and wait for ack
+                activity.id = (this.outgoingId++).toString();
+                this.outgoingAcks[activity.id] = (ack) => {
+                    delete this.outgoingAcks[activity.id];
+                    if (ack.status < 400) {
+                        resolve(ack.body || {});
+                    } else {
+                        reject(new Error(`BotFrameworkAdapter.sendActivities(): send to client failed with a status of '${ack.status}'.`)); 
+                    }
+                }
+
+                // Send activity
+                const connection = this.sockets[activity.serviceUrl];
+                connection.sendUTF(JSON.stringify(activity));
+            } else {
+                reject(new Error(`BotFrameworkAdapter.sendActivities(): clients socket connection closed.`));
+            }
         });
     }
 
@@ -834,4 +873,11 @@ function parseRequest(req: WebRequest): Promise<Activity> {
             });
         }
     });
+}
+
+interface SocketAck {
+    type: string;
+    id: string;
+    status: number;
+    body?: any;
 }
