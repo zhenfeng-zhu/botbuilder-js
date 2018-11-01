@@ -6,7 +6,7 @@
  * Licensed under the MIT License.
  */
 import * as fs from 'async-file';
-import { Activity, PagedResult, TranscriptInfo, TranscriptStore } from 'botbuilder-core';
+import { Activity, PagedResult, TranscriptInfo, TranscriptStore } from '../../botbuilder-core/lib';
 import * as filenamify from 'filenamify';
 import * as path from 'path';
 import * as rimraf from 'rimraf';

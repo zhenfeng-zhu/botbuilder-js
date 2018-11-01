@@ -296,3 +296,5 @@ __pycache__/
 #derived
 /test-runner/out
 
+lib/
+*.js

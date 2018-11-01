@@ -14,7 +14,7 @@ import {
     OAuthApiClient,
     SimpleCredentialProvider,
     GovernmentConstants
-} from 'botframework-connector';
+} from '../../botframework-connector/lib';
 
 import {
     Activity,
@@ -29,7 +29,7 @@ import {
     TokenResponse,
     TokenResponseMap,
     TurnContext
-} from 'botbuilder-core';
+} from '../../botbuilder-core/lib';
 
 import * as os from 'os';
 
